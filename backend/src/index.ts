@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import connectDB from "./db";
+import authRoutes from "./routes/auth";
 
 dotenv.config();
 
@@ -14,6 +15,8 @@ connectDB();
 app.get("/", (req, res) => {
     res.json({ message: "Second Brain API is runnning!"});
 });
+
+app.use("/api/v1", authRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
