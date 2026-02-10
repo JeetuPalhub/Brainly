@@ -151,6 +151,7 @@ Sharing:
 - Set `PUBLIC_API_BASE_URL` to your backend public API URL.
 - Set `PUBLIC_APP_BASE_URL` to your frontend public URL.
 - In frontend, set `REACT_APP_API_BASE_URL` and `REACT_APP_PUBLIC_APP_BASE_URL` for the deployed domains.
+- Full step-by-step guide: `DEPLOY_FROM_SCRATCH.md`
 
 ## Useful Docs
 
