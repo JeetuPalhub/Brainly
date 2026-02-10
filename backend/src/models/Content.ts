@@ -88,6 +88,9 @@ const contentSchema = new Schema<IContent>({
   }
 });
 
+contentSchema.index({ userId: 1, createdAt: -1 });
+contentSchema.index({ userId: 1, type: 1, createdAt: -1 });
+
 const Content = mongoose.model<IContent>('Content', contentSchema);
 
 export default Content;

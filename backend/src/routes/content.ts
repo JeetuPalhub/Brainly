@@ -574,9 +574,11 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     }
 
     const content = await Content.find({ userId })
+      .select('type link title aiSummary tags collectionId metadata userId createdAt')
       .populate('tags', 'title')
       .populate('collectionId', 'name')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({ content });
   } catch (error) {
