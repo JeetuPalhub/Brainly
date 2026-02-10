@@ -18,6 +18,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('username');
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const authAPI = {
   signup: (username: string, password: string) =>
     api.post('/signup', { username, password }),
