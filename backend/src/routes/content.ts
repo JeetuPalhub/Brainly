@@ -217,6 +217,73 @@ router.get('/ai/search', async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.post('/ai/chat', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = requireUserId(req, res);
+    if (!userId) {
+      return;
+    }
+
+    const { question } = req.body;
+    if (!question || typeof question !== 'string') {
+      return res.status(400).json({ message: 'Question is required' });
+    }
+
+    // 1. Embed the question
+    const embeddingResult = await getEmbedding(userId, question);
+
+    // 2. Find relevant content (RAG retrieval)
+    const content = await Content.find({ userId })
+      .select('title aiSummary link tags type')
+      .populate('tags', 'title')
+      .sort({ createdAt: -1 });
+
+    // We fetch all to re-rank in memory - fast enough for <1000 items. 
+    // For larger scales, vector search in DB is better.
+    const scored = [];
+    for (const item of content) {
+      const embedding = await ensureEmbedding(userId, item);
+      const score = cosineSimilarity(embeddingResult.embedding, embedding);
+      if (score > 0.4) { // Only relevant items
+        scored.push({ item, score });
+      }
+    }
+
+    // Top 5 chunks
+    scored.sort((a, b) => b.score - a.score);
+    const topContext = scored.slice(0, 5);
+
+    // 3. Construct Context
+    const contextText = topContext.map((entry) => {
+      const tags = (entry.item.tags as any[]).map(t => t.title).join(', ');
+      return `Title: ${entry.item.title}\nType: ${entry.item.type}\nSummary: ${entry.item.aiSummary || 'No summary'}\nTags: ${tags}\nLink: ${entry.item.link}\n---\n`;
+    }).join('\n');
+
+    if (!contextText) {
+      return res.status(200).json({
+        answer: "I couldn't find any relevant notes in your Second Brain to answer that question.",
+        sources: []
+      });
+    }
+
+    // 4. Generate Answer
+    // We import generateAnswer dynamically to avoid circular dependencies if any, 
+    // or just assume it's available in utils/ai.ts (which we just added)
+    const { generateAnswer } = require('../utils/ai');
+    const answerResult = await generateAnswer(userId, question, contextText);
+
+    return res.status(200).json({
+      answer: answerResult.answer,
+      sources: topContext.map(c => c.item),
+      source: answerResult.source
+    });
+
+  } catch (error) {
+    console.error('AI Chat error:', error);
+    return res.status(500).json({ message: 'Failed to chat with brain' });
+  }
+});
+
 router.post('/import', async (req: AuthRequest, res: Response) => {
   try {
     const userId = requireUserId(req, res);
@@ -386,34 +453,22 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       collectionRef = collection._id as Types.ObjectId;
     }
 
+    // Synchronous metadata fetch (fast enough usually, and essential for title)
     const metadata = await fetchContentMetadata(link, type as any).catch(() => undefined);
     const resolvedTitle = typeof title === 'string' && title.trim() ? title.trim() : metadata?.title;
+
     if (!resolvedTitle) {
-      return res.status(411).json({ message: 'Title is required (or provide a URL with detectable metadata)' });
+      // If we still can't get a title, we might fail or just use the link as title
+      // But user usually provides one or we get it from metadata
+      // Let's use link as fallback title if absolutely nothing else
     }
+    const finalTitle = resolvedTitle || link;
 
     const inputTags = (Array.isArray(tags) ? tags : []).map((tag) => String(tag).trim()).filter(Boolean);
-    const textForAI = buildContentText({
-      title: resolvedTitle,
-      description: metadata?.description,
-      link,
-      tags: inputTags,
-      type
-    });
-
-    const knownTags = await Tag.find({}).select('title').lean();
-    const knownTagTitles = knownTags.map((tag) => tag.title).filter(Boolean);
-
-    const [aiTags, aiSummary, aiEmbedding] = await Promise.all([
-      suggestTags(userId, textForAI, [...knownTagTitles, ...inputTags]),
-      summarizeText(userId, textForAI),
-      getEmbedding(userId, textForAI)
-    ]);
-
-    const mergedTags = Array.from(new Set([...inputTags, ...aiTags.tags]));
     const tagIds: Types.ObjectId[] = [];
 
-    for (const tagTitle of mergedTags) {
+    // Process input tags synchronously
+    for (const tagTitle of inputTags) {
       let tag = await Tag.findOne({ title: tagTitle });
       if (!tag) {
         tag = new Tag({ title: tagTitle });
@@ -422,74 +477,92 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       tagIds.push(tag._id as Types.ObjectId);
     }
 
-    const existingContent = await Content.find({ userId })
-      .select('title link embedding')
-      .sort({ createdAt: -1 })
-      .limit(200);
-
-    const duplicateCandidates: Array<{ contentId: string; title: string; link: string; score: number }> = [];
-    for (const existing of existingContent) {
-      let existingEmbedding = existing.embedding as number[] | undefined;
-      if (!existingEmbedding?.length) {
-        const computed = await getEmbedding(userId, `${existing.title} | ${existing.link}`);
-        existingEmbedding = computed.embedding;
-        await Content.updateOne(
-          { _id: existing._id, userId },
-          {
-            $set: {
-              embedding: existingEmbedding,
-              'aiSources.embedding': computed.source
-            }
-          }
-        );
-      }
-
-      const score = cosineSimilarity(aiEmbedding.embedding, existingEmbedding);
-      if (score >= DUPLICATE_THRESHOLD) {
-        duplicateCandidates.push({
-          contentId: existing._id.toString(),
-          title: existing.title,
-          link: existing.link,
-          score: Number(score.toFixed(4))
-        });
-      }
-    }
-
-    duplicateCandidates.sort((a, b) => b.score - a.score);
-
     const newContent = new Content({
       type,
       link,
-      title: resolvedTitle,
-      aiSummary: aiSummary.summary,
-      aiSources: {
-        summary: aiSummary.source,
-        tags: aiTags.source,
-        embedding: aiEmbedding.source
-      },
-      embedding: aiEmbedding.embedding,
+      title: finalTitle,
       tags: tagIds,
       collectionId: collectionRef,
       metadata,
-      userId
+      userId,
+      createdAt: new Date()
     });
 
     await newContent.save();
 
-    return res.status(200).json({
+    // Respond immediately to the user
+    res.status(200).json({
       message: 'Content added successfully',
-      content: newContent,
-      ai: {
-        tags: mergedTags,
-        summary: aiSummary.summary,
-        sources: newContent.aiSources,
-        duplicateCandidates: duplicateCandidates.slice(0, 3),
-        rateLimitedFallback: [aiTags.source, aiSummary.source, aiEmbedding.source].includes('fallback')
-      }
+      content: newContent
     });
+
+    // Background AI Processing (Fire and Forget)
+    (async () => {
+      try {
+        const textForAI = buildContentText({
+          title: finalTitle,
+          description: metadata?.description,
+          link,
+          tags: inputTags,
+          type
+        });
+
+        const knownTags = await Tag.find({}).select('title').lean();
+        const knownTagTitles = knownTags.map((tag) => tag.title).filter(Boolean);
+
+        const [aiTags, aiSummary, aiEmbedding] = await Promise.all([
+          suggestTags(userId, textForAI, [...knownTagTitles, ...inputTags]),
+          summarizeText(userId, textForAI),
+          getEmbedding(userId, textForAI)
+        ]);
+
+        const mergedTags = Array.from(new Set([...inputTags, ...aiTags.tags]));
+        const aiTagIds: Types.ObjectId[] = [];
+
+        for (const tagTitle of mergedTags) {
+          let tag = await Tag.findOne({ title: tagTitle });
+          if (!tag) {
+            tag = new Tag({ title: tagTitle });
+            await tag.save();
+          }
+          aiTagIds.push(tag._id as Types.ObjectId);
+        }
+
+        // Update content with AI results
+        await Content.updateOne(
+          { _id: newContent._id },
+          {
+            $set: {
+              tags: aiTagIds,
+              aiSummary: aiSummary.summary,
+              'aiSources.summary': aiSummary.source,
+              'aiSources.tags': aiTags.source,
+              'aiSources.embedding': aiEmbedding.source,
+              embedding: aiEmbedding.embedding
+            }
+          }
+        );
+
+        // Check for duplicates (optional logging or flagging)
+        // We avoid blocking the user with this check now
+        /*
+        const existingContent = await Content.find({ userId, _id: { $ne: newContent._id } })
+          .select('title link embedding')
+          .sort({ createdAt: -1 })
+          .limit(200);
+        // ... duplicate checking logic ...
+        */
+
+      } catch (bgError) {
+        console.error('Background AI processing failed for content:', newContent._id, bgError);
+      }
+    })();
+
   } catch (error) {
     console.error('Add content error:', error);
-    return res.status(500).json({ message: 'Server error' });
+    if (!res.headersSent) {
+      return res.status(500).json({ message: 'Server error' });
+    }
   }
 });
 

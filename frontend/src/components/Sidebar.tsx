@@ -65,7 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         initial={false}
         animate={{ x: isDesktop ? 0 : isOpen ? 0 : -320 }}
         transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-        className="w-72 max-w-[85vw] bg-slate-950/95 text-slate-100 h-screen shadow-2xl fixed left-0 top-0 p-6 overflow-y-auto border-r border-cyan-400/20 z-40"
+        className="w-72 max-w-[85vw] bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl text-slate-900 dark:text-slate-100 h-screen shadow-2xl fixed left-0 top-0 p-6 overflow-y-auto border-r border-gray-200 dark:border-cyan-400/20 z-40 transition-transform duration-300 ease-in-out"
       >
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -74,7 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="lg:hidden text-slate-300 hover:text-white"
+            className="lg:hidden text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
             aria-label="Close menu"
           >
             <CloseIcon className="text-2xl" />
@@ -91,11 +91,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.03 * index }}
                 onClick={() => handleFilterClick(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-                  activeFilter === item.id
-                    ? 'bg-cyan-500/20 text-cyan-200 font-semibold border border-cyan-400/40'
-                    : 'text-slate-200 hover:bg-slate-800'
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-r-lg transition-all duration-200 group ${activeFilter === item.id
+                  ? 'bg-gradient-to-r from-indigo-500/20 to-transparent border-l-4 border-indigo-500 text-indigo-700 dark:text-indigo-300 font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:pl-5 border-l-4 border-transparent'
+                  }`}
               >
                 <Icon className="text-xl" />
                 <span>{item.label}</span>
@@ -105,7 +104,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         <div className="mt-8">
-          <div className="flex items-center justify-between text-slate-300 mb-3 px-1">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-300 mb-3 px-1">
             <div className="flex items-center gap-2">
               <FolderIcon />
               <span className="font-semibold">Collections</span>
@@ -115,7 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onClose();
                 onCreateCollection();
               }}
-              className="text-cyan-300 hover:text-cyan-200"
+              className="text-indigo-500 hover:text-indigo-400 p-1 rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition"
               title="Create collection"
             >
               <PlusIcon />
@@ -124,11 +123,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-1 max-h-40 overflow-y-auto">
             <button
               onClick={() => handleCollectionClick(null)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
-                activeCollectionId === null
-                  ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40'
-                  : 'text-slate-300 hover:bg-slate-800'
-              }`}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${activeCollectionId === null
+                ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-medium'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                }`}
             >
               All Collections
             </button>
@@ -136,11 +134,10 @@ const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={collection._id}
                 onClick={() => handleCollectionClick(collection._id)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
-                  activeCollectionId === collection._id
-                    ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40'
-                    : 'text-slate-300 hover:bg-slate-800'
-                }`}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${activeCollectionId === collection._id
+                  ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-medium'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  }`}
               >
                 {collection.name}
               </button>
@@ -150,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {tags.length > 0 && (
           <div className="mt-8">
-            <div className="flex items-center gap-2 text-slate-300 mb-3 px-1">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300 mb-3 px-1">
               <HashIcon />
               <span className="font-semibold">Tags</span>
             </div>
@@ -159,11 +156,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   key={tag}
                   onClick={() => handleFilterClick(`tag:${tag}`)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
-                    activeFilter === `tag:${tag}`
-                      ? 'bg-fuchsia-500/20 text-fuchsia-200 border border-fuchsia-400/40'
-                      : 'text-slate-300 hover:bg-slate-800'
-                  }`}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${activeFilter === `tag:${tag}`
+                    ? 'bg-fuchsia-100 dark:bg-fuchsia-500/20 text-fuchsia-700 dark:text-fuchsia-300 font-medium'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    }`}
                 >
                   #{tag}
                 </button>

@@ -55,7 +55,7 @@ app.use(express.json());
 connectDB();
 
 app.get("/", (req, res) => {
-    res.json({ message: "Second Brain API is running!"});
+    res.json({ message: "Second Brain API is running!" });
 });
 
 app.use("/api/v1", authRoutes);

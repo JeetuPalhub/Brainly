@@ -21,14 +21,14 @@ api.interceptors.request.use((config) => {
 export const authAPI = {
   signup: (username: string, password: string) =>
     api.post('/signup', { username, password }),
-  
+
   signin: (username: string, password: string) =>
     api.post('/signin', { username, password }),
 };
 
 export const contentAPI = {
   getAll: () => api.get('/content'),
-  
+
   add: (data: { type: string; link: string; title: string; tags: string[]; collectionId?: string }) =>
     api.post('/content', data),
 
@@ -43,7 +43,7 @@ export const contentAPI = {
     collectionName?: string;
     collectionId?: string;
   }>) => api.post('/content/import', { items }),
-  
+
   delete: (contentId: string) => api.delete('/content', { data: { contentId } }),
 
   aiSuggest: (data: {
@@ -56,6 +56,8 @@ export const contentAPI = {
 
   semanticSearch: (query: string, limit = 20) =>
     api.get('/content/ai/search', { params: { query, limit } }),
+
+  chat: (question: string) => api.post('/content/ai/chat', { question }),
 };
 
 export const collectionAPI = {
@@ -71,9 +73,9 @@ export const collectionAPI = {
 
 export const brainAPI = {
   createShareLink: () => api.post('/brain/share', { share: true }),
-  
+
   disableSharing: () => api.post('/brain/share', { share: false }),
-  
+
   getSharedBrain: (shareLink: string) =>
     axios.get(`${API_BASE_URL}/brain/${shareLink}`),
 };

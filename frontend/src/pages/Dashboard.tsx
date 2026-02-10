@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../utils/AuthContext';
 import { brainAPI, collectionAPI, contentAPI } from '../utils/api';
 import { AISuggestions, Collection, Content, ContentMetadata } from '../types';
@@ -12,6 +13,31 @@ import { FiEdit2, FiTrash2, FiShare2, FiPlus, FiFolderMinus, FiMenu, FiUpload } 
 import Spotlight from '../components/aceternity/Spotlight';
 import Card3D from '../components/aceternity/Card3D';
 import AnimatedTabs from '../components/aceternity/AnimatedTabs';
+import MovingBorderButton from '../components/aceternity/MovingBorderButton';
+import BackgroundBeams from '../components/aceternity/BackgroundBeams';
+import ChatInterface from '../components/ChatInterface';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const cardVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      type: 'spring' as const,
+      stiffness: 100
+    }
+  }
+};
 
 const Dashboard: React.FC = () => {
   const EditIcon = FiEdit2 as React.ComponentType<{ className?: string }>;
@@ -85,7 +111,10 @@ const Dashboard: React.FC = () => {
   }, [contents, activeCollectionId, activeFilter, searchQuery]);
 
   useEffect(() => {
-    void Promise.all([fetchContents(), fetchCollections()]).finally(() => setLoading(false));
+    void Promise.all([fetchContents(), fetchCollections()])
+      .then(() => console.log('Initial fetch completed'))
+      .catch(err => console.error('Initial fetch failed', err))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -146,8 +175,13 @@ const Dashboard: React.FC = () => {
   }, [contents, activeFilter, searchQuery, activeCollectionId, semanticMode, filterContents, notifyError]);
 
   const fetchContents = async () => {
-    const response = await contentAPI.getAll();
-    setContents(response.data.content);
+    try {
+      const response = await contentAPI.getAll();
+      console.log('Fetched contents:', response.data.content);
+      setContents(response.data.content || []);
+    } catch (e) {
+      console.error('Error fetching contents:', e);
+    }
   };
 
   const fetchCollections = async () => {
@@ -232,7 +266,8 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen bg-slate-950 text-slate-100">
+    <div className="relative flex min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
+      <BackgroundBeams className="opacity-40" />
       <Spotlight className="opacity-80" />
       <Sidebar
         activeFilter={activeFilter}
@@ -246,35 +281,32 @@ const Dashboard: React.FC = () => {
         onClose={() => setIsSidebarOpen(false)}
       />
 
-      <div className="relative flex-1 lg:ml-64">
-        <div className="bg-slate-950/85 backdrop-blur-md shadow-sm p-4 sm:p-6 sticky top-0 z-10 border-b border-cyan-400/15">
+      <div className="relative flex-1 lg:ml-72 z-10">
+        <div className="bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl shadow-lg shadow-blue-500/5 p-6 sticky top-0 z-30 border-b border-white/20 dark:border-white/5 supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-950/60">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-center mb-4">
               <div>
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-100">
+                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
                     {activeFilter === 'all'
                       ? 'All Notes'
                       : activeFilter.startsWith('tag:')
-                      ? `#${activeFilter.replace('tag:', '')}`
-                      : `${activeFilter.charAt(0).toUpperCase()}${activeFilter.slice(1)}s`}
+                        ? `#${activeFilter.replace('tag:', '')}`
+                        : `${activeFilter.charAt(0).toUpperCase()}${activeFilter.slice(1)}s`}
                   </h2>
-                  <button
-                    type="button"
-                    className="lg:hidden inline-flex items-center justify-center rounded-lg border border-cyan-400/30 px-3 py-2 text-slate-200"
-                    onClick={() => setIsSidebarOpen(true)}
-                    aria-label="Open menu"
-                  >
-                    <MenuIcon className="text-lg" />
-                  </button>
+                  <div className="lg:hidden">
+                    <MovingBorderButton onClick={() => setIsSidebarOpen(true)}>
+                      <MenuIcon className="text-lg" />
+                    </MovingBorderButton>
+                  </div>
                 </div>
-                <p className="text-slate-300 text-sm mt-1">Welcome, {username}</p>
+                <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">Welcome, {username}</p>
                 {activeCollectionId && (
                   <p className="text-emerald-700 text-sm mt-1">Collection: {getActiveCollectionName()}</p>
                 )}
               </div>
               <div className="flex flex-wrap gap-2 sm:gap-3">
-                <ThemeToggle className="min-w-[108px] bg-slate-900/90 border-slate-700" />
+                <ThemeToggle className="min-w-[108px] border-slate-200 dark:border-slate-700" />
                 {activeCollectionId && (
                   <button
                     onClick={handleDeleteActiveCollection}
@@ -349,7 +381,7 @@ const Dashboard: React.FC = () => {
 
         <div className="max-w-7xl mx-auto p-4 sm:p-6">
           {semanticMode && searchQuery.trim() && (
-            <div className="mb-4 rounded-lg border border-cyan-500/30 bg-slate-900/80 px-4 py-3 text-sm text-slate-300">
+            <div className="mb-4 rounded-lg border border-cyan-500/30 bg-white/80 dark:bg-slate-900/80 px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
               {semanticLoading
                 ? 'Running semantic search...'
                 : `Semantic mode active${semanticSource ? ` (${semanticSource})` : ''}`}
@@ -358,134 +390,151 @@ const Dashboard: React.FC = () => {
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
-              <p className="text-slate-300 mt-4">Loading your content...</p>
+              <p className="text-slate-600 dark:text-slate-300 mt-4">Loading your content...</p>
             </div>
           ) : filteredContents.length === 0 ? (
-            <div className="text-center py-12 bg-slate-900/70 border border-cyan-500/20 rounded-lg shadow">
-              <p className="text-slate-300 text-lg mb-2">{searchQuery ? 'No results found' : 'No content yet'}</p>
-              <p className="text-slate-400">
-                {searchQuery ? 'Try a different search term' : 'Click Add Content to get started'}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="text-center py-16 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl"
+            >
+              <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FolderMinusIcon className="text-2xl text-slate-400" />
+              </div>
+              <p className="text-slate-600 dark:text-slate-300 text-lg mb-2 font-medium">{searchQuery ? 'No results found' : 'Your brain is empty'}</p>
+              <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                {searchQuery ? 'Try adjusting your search or filters to find what you looking for.' : 'Start adding content to build your personal knowledge base.'}
               </p>
-            </div>
+            </motion.div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+            <div
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20"
+            >
               {filteredContents.map((content) => (
-                <Card3D key={content._id} className="rounded-lg">
-                <div
-                  className="bg-slate-900/70 border border-cyan-500/20 p-4 sm:p-6 rounded-lg shadow-md transition-all duration-200"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="inline-block bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-semibold">
-                      {content.type}
-                    </span>
-                    <div className="flex gap-2">
-                      <button onClick={() => setEditingContent(content)} className="text-blue-500 hover:text-blue-700">
-                        <EditIcon />
-                      </button>
-                      <button onClick={() => handleDelete(content._id)} className="text-red-500 hover:text-red-700">
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  </div>
-
-                  <h3 className="font-bold text-lg mb-2 text-slate-100 line-clamp-2">{content.title}</h3>
-
-                  {content.metadata?.image && (
-                    <img
-                      src={content.metadata.image}
-                      alt={content.title}
-                      className="w-full h-32 object-cover rounded-lg mb-3"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
-
-                  <a
-                    href={content.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 text-sm break-all block mb-3 line-clamp-1"
-                  >
-                    {content.link}
-                  </a>
-
-                  {(content.metadata?.siteName || content.metadata?.domain) && (
-                    <p className="text-xs text-slate-400 mb-2">
-                      {content.metadata?.siteName || content.metadata?.domain}
-                    </p>
-                  )}
-
-                  {(content.aiSummary || content.metadata?.description) && (
-                    <p className="text-sm text-slate-300 line-clamp-2 mb-2">
-                      {content.aiSummary || content.metadata?.description}
-                    </p>
-                  )}
-
-                  {content.collectionId && (
-                    <button
-                      onClick={() => setActiveCollectionId(content.collectionId!._id)}
-                      className="mb-2 bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs hover:bg-emerald-200"
+                <div key={content._id}>
+                  <Card3D className="h-full rounded-2xl hover:shadow-2xl hover:shadow-cyan-500/20 transition-all duration-500">
+                    <div
+                      className="h-full flex flex-col bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border border-white/20 dark:border-white/10 p-4 sm:p-6 rounded-xl shadow-lg hover:bg-white/60 dark:hover:bg-slate-900/60 transition-all duration-300 group"
                     >
-                      {content.collectionId.name}
-                    </button>
-                  )}
+                      <div className="flex justify-between items-start mb-3">
+                        <span className="inline-block bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-semibold">
+                          {content.type}
+                        </span>
+                        <div className="flex gap-2">
+                          <button onClick={() => setEditingContent(content)} className="text-blue-500 hover:text-blue-700">
+                            <EditIcon />
+                          </button>
+                          <button onClick={() => handleDelete(content._id)} className="text-red-500 hover:text-red-700">
+                            <TrashIcon />
+                          </button>
+                        </div>
+                      </div>
+                      <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-slate-100 line-clamp-2">{content.title}</h3>
 
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {content.tags?.map((tag) => (
-                      <span
-                        key={tag._id}
-                        className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs cursor-pointer hover:bg-purple-200"
-                        onClick={() => setActiveFilter(`tag:${tag.title}`)}
+                      {content.metadata?.image && (
+                        <img
+                          src={content.metadata.image}
+                          alt={content.title}
+                          className="w-full h-32 object-cover rounded-lg mb-3"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                        />
+                      )}
+
+                      <a
+                        href={content.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm break-all block mb-3 line-clamp-1"
                       >
-                        #{tag.title}
-                      </span>
-                    ))}
-                  </div>
+                        {content.link}
+                      </a>
 
-                  <div className="mt-3 text-xs text-slate-400">Added {new Date(content.createdAt).toLocaleDateString()}</div>
+                      {(content.metadata?.siteName || content.metadata?.domain) && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                          {content.metadata?.siteName || content.metadata?.domain}
+                        </p>
+                      )}
+
+                      {(content.aiSummary || content.metadata?.description) && (
+                        <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-2 mb-2">
+                          {content.aiSummary || content.metadata?.description}
+                        </p>
+                      )}
+
+                      {content.collectionId && (
+                        <button
+                          onClick={() => setActiveCollectionId(content.collectionId!._id)}
+                          className="mb-2 bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs hover:bg-emerald-200"
+                        >
+                          {content.collectionId.name}
+                        </button>
+                      )}
+
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {content.tags?.map((tag) => (
+                          <span
+                            key={tag._id}
+                            className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs cursor-pointer hover:bg-purple-200"
+                            onClick={() => setActiveFilter(`tag:${tag.title}`)}
+                          >
+                            #{tag.title}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">Added {new Date(content.createdAt).toLocaleDateString()}</div>
+                    </div>
+                  </Card3D>
                 </div>
-                </Card3D>
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {showAddModal && (
-        <AddContentModal
-          collections={collections}
-          onNotifyError={notifyError}
-          onNotifySuccess={notifySuccess}
-          onClose={() => setShowAddModal(false)}
-          onAdd={async () => {
-            await Promise.all([fetchContents(), fetchCollections()]);
-          }}
-        />
-      )}
+      {
+        showAddModal && (
+          <AddContentModal
+            collections={collections}
+            onNotifyError={notifyError}
+            onNotifySuccess={notifySuccess}
+            onClose={() => setShowAddModal(false)}
+            onAdd={async () => {
+              await Promise.all([fetchContents(), fetchCollections()]);
+            }}
+          />
+        )
+      }
 
-      {showImportModal && (
-        <ImportContentModal
-          onClose={() => setShowImportModal(false)}
-          onImported={async () => {
-            await Promise.all([fetchContents(), fetchCollections()]);
-            setShowImportModal(false);
-          }}
-          onNotifyError={notifyError}
-          onNotifySuccess={notifySuccess}
-        />
-      )}
+      {
+        showImportModal && (
+          <ImportContentModal
+            onClose={() => setShowImportModal(false)}
+            onImported={async () => {
+              await Promise.all([fetchContents(), fetchCollections()]);
+              setShowImportModal(false);
+            }}
+            onNotifyError={notifyError}
+            onNotifySuccess={notifySuccess}
+          />
+        )
+      }
 
-      {editingContent && (
-        <EditContentModal
-          content={editingContent}
-          collections={collections}
-          onClose={() => setEditingContent(null)}
-          onUpdate={async () => {
-            await Promise.all([fetchContents(), fetchCollections()]);
-          }}
-        />
-      )}
-    </div>
+      {
+        editingContent && (
+          <EditContentModal
+            content={editingContent}
+            collections={collections}
+            onClose={() => setEditingContent(null)}
+            onUpdate={async () => {
+              await Promise.all([fetchContents(), fetchCollections()]);
+            }}
+          />
+        )
+      }
+      <ChatInterface />
+    </div >
   );
 };
 
@@ -615,8 +664,8 @@ const AddContentModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-5 sm:p-8 max-w-md w-full shadow-2xl">
+    <div className="fixed inset-0 bg-black/60 bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-5 sm:p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Add New Content</h2>
           <button onClick={onClose} className="text-gray-500 dark:text-gray-300 hover:text-gray-700 text-2xl" aria-label="Close">X</button>

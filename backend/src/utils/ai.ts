@@ -294,6 +294,69 @@ export const summarizeText = async (userId: string, text: string): Promise<Summa
   }
 };
 
+export const generateAnswer = async (
+  userId: string,
+  question: string,
+  context: string
+): Promise<{ answer: string; source: AISource }> => {
+  const task = 'generation';
+  // Use a strong instruction-tuned model. Mistral-7B-Instruct is a great choice.
+  // Fallback to a smaller model if needed, but for "chat", quality matters.
+  const modelName = process.env.HF_GENERATION_MODEL || 'mistralai/Mistral-7B-Instruct-v0.3';
+
+  // Create a cache key based on question + context hash to reuse answers if context serves same query
+  const inputHash = `${question}::${buildHash(context)}`;
+
+  const cached = await getCachedValue<{ answer: string; source: AISource }>(userId, task, modelName, inputHash);
+  if (cached) {
+    return cached;
+  }
+
+  // Construct a prompt that enforces using ONLY the context
+  const prompt = `<s>[INST] You are a helpful personal assistant for a "Second Brain" application. 
+Answer the user's question primarily based on the provided CONTEXT from their notes.
+If the context doesn't contain the answer, say "I couldn't find that in your notes, but..." and then provide a general answer if you know it, or just say you don't know.
+Keep the answer concise and friendly.
+
+CONTEXT:
+${context}
+
+QUESTION:
+${question} [/INST]`;
+
+  try {
+    const output = await callHuggingFace(modelName, {
+      inputs: prompt,
+      parameters: {
+        max_new_tokens: 512,
+        temperature: 0.7,
+        return_full_text: false
+      }
+    });
+
+    // HF Text Generation API usually returns [{ generated_text: "..." }]
+    const answer = Array.isArray(output)
+      ? (output[0] as { generated_text?: string })?.generated_text || ''
+      : (output as { generated_text?: string })?.generated_text || '';
+
+    const cleanAnswer = answer.trim() || 'I could not generate an answer at this time.';
+
+    const result = {
+      answer: cleanAnswer,
+      source: 'huggingface' as AISource
+    };
+
+    await setCachedValue(userId, task, modelName, inputHash, result, result.source);
+    return result;
+  } catch (error) {
+    console.error('AI Generation error:', error);
+    return {
+      answer: "I'm having trouble connecting to my brain right now. Please try again later.",
+      source: 'fallback'
+    };
+  }
+};
+
 export const suggestTags = async (userId: string, text: string, existingTags: string[] = []): Promise<TagsResult> => {
   const normalized = normalizeText(text);
   const task = 'tagging';

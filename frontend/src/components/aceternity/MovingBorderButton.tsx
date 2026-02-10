@@ -21,7 +21,7 @@ const MovingBorderButton: React.FC<
         transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
         style={{ backgroundSize: '200% 200%' }}
       />
-      <span className="relative rounded-[10px] bg-slate-950/90 text-slate-100 px-4 py-2 text-sm font-semibold w-full h-full">
+      <span className="relative rounded-[10px] bg-white dark:bg-slate-950/90 text-slate-900 dark:text-slate-100 px-4 py-2 text-sm font-semibold w-full h-full">
         {children}
       </span>
     </button>
