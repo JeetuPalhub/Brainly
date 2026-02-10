@@ -184,7 +184,14 @@ const Dashboard: React.FC = () => {
   const handleShare = async () => {
     try {
       const response = await brainAPI.createShareLink();
-      setShareLink(response.data.link);
+      const generatedLink = String(response.data?.link || '');
+      const fallbackApiLink = String(response.data?.apiLink || '');
+      const rawLink = generatedLink || fallbackApiLink;
+      const shareIdMatch = rawLink.match(/\/brain\/([a-zA-Z0-9]+)(?:\?.*)?$/);
+      const shareId = shareIdMatch?.[1] || '';
+      const appBase = (process.env.REACT_APP_PUBLIC_APP_BASE_URL || window.location.origin).replace(/\/$/, '');
+      const normalizedShareLink = shareId ? `${appBase}/share/${shareId}` : rawLink;
+      setShareLink(normalizedShareLink);
       notifySuccess('Share link created');
     } catch (err) {
       console.error('Error creating share link:', err);
@@ -1055,6 +1062,4 @@ const ImportContentModal = ({
 };
 
 export default Dashboard;
-
-
 

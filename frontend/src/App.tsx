@@ -7,6 +7,7 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import SharePage from './pages/SharePage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -51,6 +52,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/share/:shareId" element={<SharePage />} />
             </Routes>
           </Router>
         </AuthProvider>
