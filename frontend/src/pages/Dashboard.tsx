@@ -112,7 +112,6 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     void Promise.all([fetchContents(), fetchCollections()])
-      .then(() => console.log('Initial fetch completed'))
       .catch(err => console.error('Initial fetch failed', err))
       .finally(() => setLoading(false));
   }, []);
@@ -177,7 +176,6 @@ const Dashboard: React.FC = () => {
   const fetchContents = async () => {
     try {
       const response = await contentAPI.getAll();
-      console.log('Fetched contents:', response.data.content);
       setContents(response.data.content || []);
     } catch (e) {
       console.error('Error fetching contents:', e);
