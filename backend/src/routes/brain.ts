@@ -4,6 +4,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 import crypto from 'crypto';
 
 const router = express.Router();
+const PUBLIC_API_BASE_URL = (process.env.PUBLIC_API_BASE_URL || 'http://localhost:3000/api/v1').replace(/\/$/, '');
 
 // Create/Update shareable link (requires auth)
 router.post('/share', authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -17,7 +18,7 @@ router.post('/share', authMiddleware, async (req: AuthRequest, res: Response) =>
 
       if (existingLink) {
         return res.status(200).json({
-          link: `http://localhost:3000/api/v1/brain/${existingLink.hash}`
+          link: `${PUBLIC_API_BASE_URL}/brain/${existingLink.hash}`
         });
       }
 
@@ -33,7 +34,7 @@ router.post('/share', authMiddleware, async (req: AuthRequest, res: Response) =>
       await newLink.save();
 
       return res.status(200).json({
-        link: `http://localhost:3000/api/v1/brain/${hash}`
+        link: `${PUBLIC_API_BASE_URL}/brain/${hash}`
       });
 
     } else {
@@ -73,6 +74,7 @@ router.get('/:shareLink', async (req: express.Request, res: Response) => {
     // Get user's content
     const content = await Content.find({ userId: link.userId })
       .populate('tags', 'title')
+      .populate('collectionId', 'name')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
