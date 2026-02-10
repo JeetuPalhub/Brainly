@@ -16,7 +16,45 @@ const ZapIcon = FiZap as React.ComponentType<{ className?: string }>;
 const ShieldIcon = FiShield as React.ComponentType<{ className?: string }>;
 const CpuIcon = FiCpu as React.ComponentType<{ className?: string }>;
 
+type InternalLinkItem = {
+  label: string;
+  to: string;
+};
+
+type AnchorLinkItem = {
+  label: string;
+  href: string;
+};
+
+type FooterLinkItem = InternalLinkItem | AnchorLinkItem;
+
 const Landing: React.FC = () => {
+  const productLinks: FooterLinkItem[] = [
+    { label: 'Features', href: '#features' },
+    { label: 'Get Started', to: '/signup' },
+    { label: 'Sign In', to: '/login' },
+    { label: 'Dashboard', to: '/dashboard' }
+  ];
+
+  const resourceLinks: FooterLinkItem[] = [
+    { label: 'Overview', href: '#overview' },
+    { label: 'Highlights', href: '#highlights' },
+    { label: 'Create Account', to: '/signup' },
+    { label: 'Sign In', to: '/login' }
+  ];
+
+  const legalLinks = [
+    { label: 'Privacy', href: 'https://vercel.com/legal/privacy-policy' },
+    { label: 'Terms', href: 'https://vercel.com/legal/terms' },
+    { label: 'Security', href: 'https://vercel.com/security' }
+  ];
+
+  const socialLinks = [
+    { label: 'Twitter', href: 'https://x.com' },
+    { label: 'GitHub', href: 'https://github.com/JeetuPalhub/Brainly' },
+    { label: 'Discord', href: 'https://discord.com' }
+  ];
+
   return (
     <AuroraBackground className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <Spotlight className="-top-40 left-0 md:left-60 md:-top-20" />
@@ -26,7 +64,7 @@ const Landing: React.FC = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 pb-20">
-        <section className="pt-14 md:pt-20 text-center relative z-10">
+        <section id="overview" className="pt-14 md:pt-20 text-center relative z-10">
           <TextGenerateEffect
             words="Build a living knowledge system with cinematic interactions"
             className="text-4xl md:text-6xl font-semibold leading-tight max-w-4xl mx-auto text-slate-900 dark:text-white"
@@ -49,7 +87,7 @@ const Landing: React.FC = () => {
           </div>
         </section>
 
-        <section className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+        <section id="highlights" className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
           {['Lightning fast search', 'Visual second brain', 'Designed for creators'].map((label) => (
             <Card3D key={label} className="rounded-2xl">
               <div className="rounded-2xl border border-slate-200 dark:border-white/15 bg-white/40 dark:bg-slate-900/60 backdrop-blur-xl p-6 h-full hover:bg-white/60 dark:hover:bg-slate-900/80 transition-colors">
@@ -61,7 +99,7 @@ const Landing: React.FC = () => {
           ))}
         </section>
 
-        <section className="mt-24 relative z-10">
+        <section id="features" className="mt-24 relative z-10">
           <h2 className="text-2xl md:text-4xl font-bold mb-8 text-center text-slate-900 dark:text-white">What makes it stand out</h2>
           <BentoGrid>
             <BentoCard title="Metadata Intelligence" description="Auto-enriched previews with title, thumbnail, and domain context." icon={<GlobeIcon />} className="md:col-span-2" />
@@ -72,6 +110,7 @@ const Landing: React.FC = () => {
             <BentoCard title="Motion at 60fps" description="Framer Motion micro-interactions tuned for smoothness." icon={<CpuIcon />} />
           </BentoGrid>
         </section>
+
         <footer className="relative z-10 border-t border-slate-200 dark:border-white/10 mt-20 pt-16 pb-8 backdrop-blur-sm">
           <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
@@ -80,41 +119,67 @@ const Landing: React.FC = () => {
                 Your digital extension for capturing, organizing, and retrieving knowledge.
               </p>
             </div>
+
             <div>
               <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Product</h4>
               <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                <li><a href="#" className="hover:text-cyan-500 transition-colors">Features</a></li>
-                <li><a href="#" className="hover:text-cyan-500 transition-colors">Pricing</a></li>
-                <li><a href="#" className="hover:text-cyan-500 transition-colors">Integrations</a></li>
-                <li><a href="#" className="hover:text-cyan-500 transition-colors">Changelog</a></li>
+                {productLinks.map((item) => (
+                  <li key={item.label}>
+                    {'to' in item ? (
+                      <Link to={item.to} className="hover:text-cyan-500 transition-colors">
+                        {item.label}
+                      </Link>
+                    ) : (
+                      <a href={item.href} className="hover:text-cyan-500 transition-colors">
+                        {item.label}
+                      </a>
+                    )}
+                  </li>
+                ))}
               </ul>
             </div>
+
             <div>
               <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Resources</h4>
               <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                <li><a href="#" className="hover:text-cyan-500 transition-colors">Documentation</a></li>
-                <li><a href="#" className="hover:text-cyan-500 transition-colors">API Reference</a></li>
-                <li><a href="#" className="hover:text-cyan-500 transition-colors">Community</a></li>
-                <li><a href="#" className="hover:text-cyan-500 transition-colors">Blog</a></li>
+                {resourceLinks.map((item) => (
+                  <li key={item.label}>
+                    {'to' in item ? (
+                      <Link to={item.to} className="hover:text-cyan-500 transition-colors">
+                        {item.label}
+                      </Link>
+                    ) : (
+                      <a href={item.href} className="hover:text-cyan-500 transition-colors">
+                        {item.label}
+                      </a>
+                    )}
+                  </li>
+                ))}
               </ul>
             </div>
+
             <div>
               <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Legal</h4>
               <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                <li><a href="#" className="hover:text-cyan-500 transition-colors">Privacy</a></li>
-                <li><a href="#" className="hover:text-cyan-500 transition-colors">Terms</a></li>
-                <li><a href="#" className="hover:text-cyan-500 transition-colors">Security</a></li>
+                {legalLinks.map((item) => (
+                  <li key={item.label}>
+                    <a href={item.href} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-500 transition-colors">
+                      {item.label}
+                    </a>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
+
           <div className="max-w-7xl mx-auto px-6 border-t border-slate-200 dark:border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-slate-500 dark:text-slate-400 text-sm">
-              © {new Date().getFullYear()} Second Brain. All rights reserved.
+              (c) {new Date().getFullYear()} Second Brain. All rights reserved.
             </p>
             <div className="flex gap-6">
-              {['Twitter', 'GitHub', 'Discord'].map((social) => (
-                <a key={social} href="#" className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors text-sm">
-                  {social}
+              {socialLinks.map((social) => (
+                <a key={social.label} href={social.href} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors text-sm">
+                  {social.label}
                 </a>
               ))}
             </div>

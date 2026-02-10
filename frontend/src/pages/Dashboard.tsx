@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useAuth } from '../utils/AuthContext';
 import { brainAPI, collectionAPI, contentAPI } from '../utils/api';
 import { AISuggestions, Collection, Content, ContentMetadata } from '../types';
@@ -16,28 +16,6 @@ import AnimatedTabs from '../components/aceternity/AnimatedTabs';
 import MovingBorderButton from '../components/aceternity/MovingBorderButton';
 import BackgroundBeams from '../components/aceternity/BackgroundBeams';
 import ChatInterface from '../components/ChatInterface';
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-};
-
-const cardVariants = {
-  hidden: { y: 20, opacity: 0 },
-  visible: {
-    y: 0,
-    opacity: 1,
-    transition: {
-      type: 'spring' as const,
-      stiffness: 100
-    }
-  }
-};
 
 const Dashboard: React.FC = () => {
   const EditIcon = FiEdit2 as React.ComponentType<{ className?: string }>;
@@ -1077,7 +1055,6 @@ const ImportContentModal = ({
 };
 
 export default Dashboard;
-
 
 
 
