@@ -573,14 +573,29 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const content = await Content.find({ userId })
-      .select('type link title aiSummary tags collectionId metadata userId createdAt')
-      .populate('tags', 'title')
-      .populate('collectionId', 'name')
-      .sort({ createdAt: -1 })
-      .lean();
+    const page = Math.max(1, Number(req.query.page || 1));
+    const limit = Math.max(1, Math.min(100, Number(req.query.limit || 20)));
+    const skip = (page - 1) * limit;
 
-    return res.status(200).json({ content });
+    const [content, totalCount] = await Promise.all([
+      Content.find({ userId })
+        .select('type link title aiSummary tags collectionId metadata userId createdAt')
+        .populate('tags', 'title')
+        .populate('collectionId', 'name')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Content.countDocuments({ userId })
+    ]);
+
+    return res.status(200).json({
+      content,
+      totalCount,
+      page,
+      limit,
+      hasMore: totalCount > skip + content.length
+    });
   } catch (error) {
     console.error('Get content error:', error);
     return res.status(500).json({ message: 'Server error' });

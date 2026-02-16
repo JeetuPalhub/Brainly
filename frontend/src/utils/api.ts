@@ -38,7 +38,7 @@ export const authAPI = {
 };
 
 export const contentAPI = {
-  getAll: () => api.get('/content'),
+  getAll: (page = 1, limit = 20) => api.get('/content', { params: { page, limit } }),
 
   add: (data: { type: string; link: string; title: string; tags: string[]; collectionId?: string }) =>
     api.post('/content', data),

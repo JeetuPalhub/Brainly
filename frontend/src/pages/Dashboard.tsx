@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../utils/AuthContext';
@@ -15,6 +15,9 @@ import Card3D from '../components/aceternity/Card3D';
 import AnimatedTabs from '../components/aceternity/AnimatedTabs';
 import MovingBorderButton from '../components/aceternity/MovingBorderButton';
 import BackgroundBeams from '../components/aceternity/BackgroundBeams';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInView } from 'react-intersection-observer';
+import SkeletonCard from '../components/SkeletonCard';
 import ChatInterface from '../components/ChatInterface';
 
 const Dashboard: React.FC = () => {
@@ -26,22 +29,20 @@ const Dashboard: React.FC = () => {
   const MenuIcon = FiMenu as React.ComponentType<{ className?: string }>;
   const UploadIcon = FiUpload as React.ComponentType<{ className?: string }>;
 
-  const [contents, setContents] = useState<Content[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [filteredContents, setFilteredContents] = useState<Content[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingContent, setEditingContent] = useState<Content | null>(null);
   const [shareLink, setShareLink] = useState('');
-  const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [semanticMode, setSemanticMode] = useState(false);
-  const [semanticLoading, setSemanticLoading] = useState(false);
-  const [semanticSource, setSemanticSource] = useState<'huggingface' | 'fallback' | ''>('');
+  const [semanticLoading] = useState(false);
+  const [semanticSource] = useState<'huggingface' | 'fallback' | ''>('');
   const { success: notifySuccess, error: notifyError, info: notifyInfo } = useNotification();
+  const queryClient = useQueryClient();
+  const { ref, inView } = useInView();
   const tabItems = [
     { id: 'all', label: 'All' },
     { id: 'document', label: 'Docs' },
@@ -53,8 +54,63 @@ const Dashboard: React.FC = () => {
   const { username, logout } = useAuth();
   const navigate = useNavigate();
 
-  const filterContents = useCallback(() => {
-    let filtered = [...contents];
+  // Use React Query for collections
+  const { data: collectionsData } = useQuery({
+    queryKey: ['collections'],
+    queryFn: async () => {
+      const response = await collectionAPI.getAll();
+      return response.data.collections as Collection[];
+    }
+  });
+  const collections = collectionsData || [];
+
+  // Use Infinite Query for contents
+  const {
+    data: infiniteData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    status,
+    refetch: refetchContents
+  } = useInfiniteQuery({
+    queryKey: ['contents', activeFilter, activeCollectionId, semanticMode ? searchQuery : ''],
+    queryFn: async ({ pageParam = 1 }) => {
+      // If semantic mode is on and we have a query, use semantic search
+      // Note: Semantic search currently doesn't support pagination on backend perfectly, 
+      // but for "very fast" we'll use regular fetch with pagination for most cases.
+      if (semanticMode && searchQuery.trim()) {
+        const response = await contentAPI.semanticSearch(searchQuery.trim(), 50);
+        const results = (response.data?.results || []).map((entry: { content: Content }) => entry.content);
+        return {
+          content: results,
+          hasMore: false,
+          page: 1
+        };
+      }
+
+      const response = await contentAPI.getAll(pageParam, 20);
+      return response.data;
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
+    enabled: !semanticMode || !searchQuery.trim() // Disabled semantic search from regular interval if needed
+  });
+
+  // Handle intersection for infinite scroll
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Combined contents from all pages
+  const allContents = useMemo(() => {
+    return infiniteData?.pages.flatMap((page) => page.content) || [];
+  }, [infiniteData]);
+
+  // Clientside filtering for what's already loaded (fallback for instant feel)
+  const filteredContents = useMemo(() => {
+    let filtered = [...allContents];
 
     if (activeCollectionId) {
       filtered = filtered.filter((c) => c.collectionId?._id === activeCollectionId);
@@ -64,114 +120,44 @@ const Dashboard: React.FC = () => {
       if (activeFilter.startsWith('tag:')) {
         const tagName = activeFilter.replace('tag:', '');
         filtered = filtered.filter((c) =>
-          c.tags.some((t) => t.title.toLowerCase() === tagName.toLowerCase())
+          c.tags.some((t: any) => t.title.toLowerCase() === tagName.toLowerCase())
         );
       } else {
         filtered = filtered.filter((c) => c.type === activeFilter);
       }
     }
 
-    if (searchQuery.trim()) {
+    if (searchQuery.trim() && !semanticMode) {
       const normalizedQuery = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (c) =>
           c.title.toLowerCase().includes(normalizedQuery) ||
           c.link.toLowerCase().includes(normalizedQuery) ||
-          c.tags.some((t) => t.title.toLowerCase().includes(normalizedQuery)) ||
-          Boolean(c.collectionId?.name.toLowerCase().includes(normalizedQuery)) ||
-          Boolean(c.aiSummary?.toLowerCase().includes(normalizedQuery)) ||
-          Boolean(c.metadata?.description?.toLowerCase().includes(normalizedQuery)) ||
-          Boolean(c.metadata?.domain?.toLowerCase().includes(normalizedQuery))
+          c.tags.some((t: any) => t.title.toLowerCase().includes(normalizedQuery)) ||
+          Boolean(c.collectionId?.name.toLowerCase().includes(normalizedQuery))
       );
     }
 
-    setFilteredContents(filtered);
-  }, [contents, activeCollectionId, activeFilter, searchQuery]);
-
-  useEffect(() => {
-    void Promise.all([fetchContents(), fetchCollections()])
-      .catch(err => console.error('Initial fetch failed', err))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    const timer = setTimeout(() => {
-      if (!semanticMode || !searchQuery.trim()) {
-        setSemanticSource('');
-        setSemanticLoading(false);
-        filterContents();
-        return;
-      }
-
-      setSemanticLoading(true);
-      void contentAPI
-        .semanticSearch(searchQuery.trim(), 50)
-        .then((response) => {
-          if (!mounted) {
-            return;
-          }
-
-          const ranked: Content[] = (response.data?.results || []).map((entry: { content: Content }) => entry.content as Content);
-          let filtered: Content[] = ranked;
-          if (activeCollectionId) {
-            filtered = filtered.filter((c: Content) => c.collectionId?._id === activeCollectionId);
-          }
-          if (activeFilter !== 'all') {
-            if (activeFilter.startsWith('tag:')) {
-              const tagName = activeFilter.replace('tag:', '');
-              filtered = filtered.filter((c: Content) => c.tags.some((t) => t.title.toLowerCase() === tagName.toLowerCase()));
-            } else {
-              filtered = filtered.filter((c: Content) => c.type === activeFilter);
-            }
-          }
-
-          const source = response.data?.source;
-          setSemanticSource(source === 'huggingface' || source === 'fallback' ? source : '');
-          setFilteredContents(filtered);
-        })
-        .catch((error: any) => {
-          if (!mounted) {
-            return;
-          }
-          setSemanticSource('');
-          notifyError(error?.response?.data?.message || 'Semantic search failed. Showing keyword results.');
-          filterContents();
-        })
-        .finally(() => {
-          if (mounted) {
-            setSemanticLoading(false);
-          }
-        });
-    }, 350);
-
-    return () => {
-      mounted = false;
-      clearTimeout(timer);
-    };
-  }, [contents, activeFilter, searchQuery, activeCollectionId, semanticMode, filterContents, notifyError]);
-
-  const fetchContents = async () => {
-    try {
-      const response = await contentAPI.getAll();
-      setContents(response.data.content || []);
-    } catch (e) {
-      console.error('Error fetching contents:', e);
-    }
-  };
-
-  const fetchCollections = async () => {
-    const response = await collectionAPI.getAll();
-    setCollections(response.data.collections);
-  };
+    return filtered;
+  }, [allContents, activeCollectionId, activeFilter, searchQuery, semanticMode]);
 
   const getAllTags = useMemo(() => {
     const tagSet = new Set<string>();
-    contents.forEach((c) => {
-      c.tags.forEach((t) => tagSet.add(t.title));
+    allContents.forEach((c: any) => {
+      c.tags.forEach((t: any) => tagSet.add(t.title));
     });
     return Array.from(tagSet);
-  }, [contents]);
+  }, [allContents]);
+
+  const fetchCollections = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['collections'] });
+  };
+
+  const fetchContents = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['contents'] });
+  };
+
+
 
   const getActiveCollectionName = () =>
     collections.find((collection) => collection._id === activeCollectionId)?.name;
@@ -207,7 +193,7 @@ const Dashboard: React.FC = () => {
 
     try {
       await contentAPI.delete(contentId);
-      setContents((prevContents) => prevContents.filter((content) => content._id !== contentId));
+      await refetchContents();
       notifySuccess('Content deleted');
     } catch (err: any) {
       notifyError(err?.response?.data?.message || 'Failed to delete content');
@@ -370,10 +356,11 @@ const Dashboard: React.FC = () => {
                 : `Semantic mode active${semanticSource ? ` (${semanticSource})` : ''}`}
             </div>
           )}
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
-              <p className="text-slate-600 dark:text-slate-300 mt-4">Loading your content...</p>
+          {status === 'pending' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
           ) : filteredContents.length === 0 ? (
             <motion.div
@@ -391,87 +378,101 @@ const Dashboard: React.FC = () => {
               </p>
             </motion.div>
           ) : (
-            <div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20"
-            >
-              {filteredContents.map((content) => (
-                <div key={content._id}>
-                  <Card3D className="h-full rounded-2xl hover:shadow-2xl hover:shadow-cyan-500/20 transition-all duration-500">
-                    <div
-                      className="h-full flex flex-col bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border border-white/20 dark:border-white/10 p-4 sm:p-6 rounded-xl shadow-lg hover:bg-white/60 dark:hover:bg-slate-900/60 transition-all duration-300 group"
-                    >
-                      <div className="flex justify-between items-start mb-3">
-                        <span className="inline-block bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-semibold">
-                          {content.type}
-                        </span>
-                        <div className="flex gap-2">
-                          <button onClick={() => setEditingContent(content)} className="text-blue-500 hover:text-blue-700">
-                            <EditIcon />
-                          </button>
-                          <button onClick={() => handleDelete(content._id)} className="text-red-500 hover:text-red-700">
-                            <TrashIcon />
-                          </button>
-                        </div>
-                      </div>
-                      <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-slate-100 line-clamp-2">{content.title}</h3>
-
-                      {content.metadata?.image && (
-                        <img
-                          src={content.metadata.image}
-                          alt={content.title}
-                          className="w-full h-32 object-cover rounded-lg mb-3"
-                          loading="lazy"
-                          referrerPolicy="no-referrer"
-                        />
-                      )}
-
-                      <a
-                        href={content.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm break-all block mb-3 line-clamp-1"
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-10">
+                {filteredContents.map((content) => (
+                  <div key={content._id}>
+                    <Card3D className="h-full rounded-2xl hover:shadow-2xl hover:shadow-cyan-500/20 transition-all duration-500">
+                      <div
+                        className="h-full flex flex-col bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border border-white/20 dark:border-white/10 p-4 sm:p-6 rounded-xl shadow-lg hover:bg-white/60 dark:hover:bg-slate-900/60 transition-all duration-300 group"
                       >
-                        {content.link}
-                      </a>
-
-                      {(content.metadata?.siteName || content.metadata?.domain) && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-                          {content.metadata?.siteName || content.metadata?.domain}
-                        </p>
-                      )}
-
-                      {(content.aiSummary || content.metadata?.description) && (
-                        <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-2 mb-2">
-                          {content.aiSummary || content.metadata?.description}
-                        </p>
-                      )}
-
-                      {content.collectionId && (
-                        <button
-                          onClick={() => setActiveCollectionId(content.collectionId!._id)}
-                          className="mb-2 bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs hover:bg-emerald-200"
-                        >
-                          {content.collectionId.name}
-                        </button>
-                      )}
-
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {content.tags?.map((tag) => (
-                          <span
-                            key={tag._id}
-                            className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs cursor-pointer hover:bg-purple-200"
-                            onClick={() => setActiveFilter(`tag:${tag.title}`)}
-                          >
-                            #{tag.title}
+                        <div className="flex justify-between items-start mb-3">
+                          <span className="inline-block bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-semibold">
+                            {content.type}
                           </span>
-                        ))}
+                          <div className="flex gap-2">
+                            <button onClick={() => setEditingContent(content)} className="text-blue-500 hover:text-blue-700">
+                              <EditIcon />
+                            </button>
+                            <button onClick={() => handleDelete(content._id)} className="text-red-500 hover:text-red-700">
+                              <TrashIcon />
+                            </button>
+                          </div>
+                        </div>
+                        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-slate-100 line-clamp-2">{content.title}</h3>
+
+                        {content.metadata?.image && (
+                          <img
+                            src={content.metadata.image}
+                            alt={content.title}
+                            className="w-full h-32 object-cover rounded-lg mb-3"
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+
+                        <a
+                          href={content.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm break-all block mb-3 line-clamp-1"
+                        >
+                          {content.link}
+                        </a>
+
+                        {(content.metadata?.siteName || content.metadata?.domain) && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                            {content.metadata?.siteName || content.metadata?.domain}
+                          </p>
+                        )}
+
+                        {(content.aiSummary || content.metadata?.description) && (
+                          <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-2 mb-2">
+                            {content.aiSummary || content.metadata?.description}
+                          </p>
+                        )}
+
+                        {content.collectionId && (
+                          <button
+                            onClick={() => setActiveCollectionId(content.collectionId!._id)}
+                            className="mb-2 bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs hover:bg-emerald-200"
+                          >
+                            {content.collectionId.name}
+                          </button>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {content.tags?.map((tag: any) => (
+                            <span
+                              key={tag._id}
+                              className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs cursor-pointer hover:bg-purple-200"
+                              onClick={() => setActiveFilter(`tag:${tag.title}`)}
+                            >
+                              #{tag.title}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">Added {new Date(content.createdAt).toLocaleDateString()}</div>
                       </div>
-                      <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">Added {new Date(content.createdAt).toLocaleDateString()}</div>
-                    </div>
-                  </Card3D>
-                </div>
-              ))}
-            </div>
+                    </Card3D>
+                  </div>
+                ))}
+              </div>
+
+              {/* Infinite Scroll trigger element */}
+              <div ref={ref} className="h-10 flex items-center justify-center mb-20">
+                {isFetchingNextPage ? (
+                  <div className="flex items-center gap-2 text-blue-600 font-medium">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
+                    <span>Loading more...</span>
+                  </div>
+                ) : hasNextPage ? (
+                  <p className="text-slate-500">Scroll to load more</p>
+                ) : allContents.length > 0 ? (
+                  <p className="text-slate-500">You've reached the end of your brain!</p>
+                ) : null}
+              </div>
+            </>
           )}
         </div>
       </div>
