@@ -71,7 +71,34 @@ Save links, notes, YouTube videos, tweets, and documents to your second brain. O
 
 ## Architecture
 
+```
+Browser (React + TanStack Query)
+        |  HTTPS, JWT in Authorization header
+        v
+Express REST API (TypeScript)
+   |- auth / content / collections / brain (share) routes
+   |- rate limiter + security headers (middleware)
+        |                          |
+        v                          v
+   MongoDB (Mongoose)        HuggingFace Inference API
+    - users, content,         - zero-shot tagging
+      tags, collections,      - summarization
+      links, ai_cache         - sentence embeddings
+```
 
+---
+
+## How It Works (Plain English)
+
+A quick tour of the ideas behind the AI features, in case you've never met them before.
+
+- **Embeddings** turn a piece of text into a list of numbers (a *vector*) such that texts with similar *meaning* end up close together in number-space. Saving a note computes its embedding once.
+- **Semantic search** embeds your search query the same way, then finds the saved items whose vectors are closest. So searching "how to stay focused" can surface a note titled "beating procrastination" even with no shared words.
+- **Cosine similarity** is how "closeness" is measured: 1.0 = same meaning, 0 = unrelated. Results are ranked by this score; duplicates are flagged above 0.88.
+- **RAG chat** (Retrieval-Augmented Generation) answers questions about *your* notes: it retrieves the most similar items, feeds them to a model as context, and generates an answer grounded in what you saved.
+- **Background processing** keeps the app fast: when you add content, the API saves it and responds immediately, then does the AI work (tagging, summary, embedding) *after* replying.
+- **AI caching** stores each model result keyed by its input, with a MongoDB **TTL index** that auto-deletes entries after ~14 days, so the same text is never re-processed.
+- **Graceful fallback** means if HuggingFace is down, a deterministic local method takes over so the app keeps working; every result is labelled `huggingface` or `fallback`.
 
 ---
 
