@@ -17,6 +17,20 @@ const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 300);
 
 const requestBuckets = new Map<string, { count: number; windowStart: number }>();
 
+// Periodically evict stale buckets so the Map cannot grow unbounded.
+// Without this, every unique IP leaves a permanent entry (a slow memory leak).
+const RATE_LIMIT_SWEEP_MS = Number(process.env.RATE_LIMIT_SWEEP_MS || RATE_LIMIT_WINDOW_MS);
+const sweepTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [ip, bucket] of requestBuckets) {
+        if (now - bucket.windowStart > RATE_LIMIT_WINDOW_MS) {
+            requestBuckets.delete(ip);
+        }
+    }
+}, RATE_LIMIT_SWEEP_MS);
+// Don't keep the event loop alive just for the sweep timer.
+sweepTimer.unref?.();
+
 const securityHeaders = (_req: express.Request, res: express.Response, next: express.NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
