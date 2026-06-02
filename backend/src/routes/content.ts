@@ -267,15 +267,33 @@ router.post('/ai/chat', async (req: AuthRequest, res: Response) => {
     }
 
     // 4. Generate Answer
-    // We import generateAnswer dynamically to avoid circular dependencies if any, 
+    // We import generateAnswer dynamically to avoid circular dependencies if any,
     // or just assume it's available in utils/ai.ts (which we just added)
     const { generateAnswer } = require('../utils/ai');
     const answerResult = await generateAnswer(userId, question, contextText);
 
+    // If the LLM generation isn't available (e.g. the hosted model is down or
+    // unreachable on the free tier), don't show an unhelpful "trouble connecting"
+    // message. We already retrieved the most relevant notes, so return those as a
+    // useful extractive answer instead. Chat then works regardless of the LLM.
+    const generationUnavailable =
+      answerResult.source === 'fallback' ||
+      /trouble connecting|could not generate/i.test(answerResult.answer || '');
+
+    const buildExtractiveAnswer = () => {
+      const lines = topContext.map((entry, i) => {
+        const it: any = entry.item;
+        const summary = it.aiSummary ? ` - ${it.aiSummary}` : '';
+        const link = it.link ? ` (${it.link})` : '';
+        return `${i + 1}. ${it.title}${summary}${link}`;
+      });
+      return `Here are the most relevant notes I found in your Second Brain:\n\n${lines.join('\n')}`;
+    };
+
     return res.status(200).json({
-      answer: answerResult.answer,
+      answer: generationUnavailable ? buildExtractiveAnswer() : answerResult.answer,
       sources: topContext.map(c => c.item),
-      source: answerResult.source
+      source: generationUnavailable ? 'fallback' : answerResult.source
     });
 
   } catch (error) {
