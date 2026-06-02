@@ -166,6 +166,8 @@ Open [http://localhost:3001](http://localhost:3001)
 |  | Server port |  |
 |  | Allowed frontend origin |  |
 |  | HuggingFace API token (AI features) | optional |
+| `GROQ_API_KEY` | Groq key for the "Ask Your Brain" chat (free at console.groq.com) | optional |
+| `GROQ_MODEL` | Groq chat model | `llama-3.3-70b-versatile` |
 |  | Zero-shot model for tags |  |
 |  | Summarization model |  |
 |  | Embedding model |  |

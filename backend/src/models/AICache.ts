@@ -7,7 +7,7 @@ export interface IAICache extends Document {
   inputHash: string;
   inputPreview: string;
   response: unknown;
-  source: 'huggingface' | 'fallback';
+  source: 'huggingface' | 'groq' | 'fallback';
   status: 'ok' | 'error';
   createdAt: Date;
   expiresAt: Date;
@@ -43,7 +43,7 @@ const aiCacheSchema = new Schema<IAICache>({
   },
   source: {
     type: String,
-    enum: ['huggingface', 'fallback'],
+    enum: ['huggingface', 'groq', 'fallback'],
     required: true
   },
   status: {

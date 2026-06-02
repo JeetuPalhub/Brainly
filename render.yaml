@@ -30,6 +30,12 @@ services:
         sync: false
       - key: HF_API_URL
         value: https://router.huggingface.co/hf-inference/models
+      # Groq powers the "Ask Your Brain" chat (free, fast, OpenAI-compatible).
+      # Get a key at https://console.groq.com/keys and set it in the dashboard.
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
       - key: HF_TAG_MODEL
         value: facebook/bart-large-mnli
       - key: HF_SUMMARY_MODEL
