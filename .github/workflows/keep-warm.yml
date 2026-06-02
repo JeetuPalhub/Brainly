@@ -5,8 +5,9 @@ name: Keep Backend Warm
 
 on:
   schedule:
-    # Every 10 minutes. GitHub cron is best-effort and may run a little late.
-    - cron: "*/10 * * * *"
+    # Every 5 minutes. Render free instances nap after ~15 min idle, and GitHub
+    # cron is best-effort (can run late), so 5 min gives a safer margin than 10.
+    - cron: "*/5 * * * *"
   workflow_dispatch:        # allows manual "Run workflow" from the Actions tab
 
 jobs:
