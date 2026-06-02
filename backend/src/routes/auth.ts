@@ -2,31 +2,18 @@ import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models';
+import { signupSchema, signinSchema, firstError } from '../utils/validation';
 
 const router = express.Router();
 
 // Sign Up Route
 router.post('/signup', async (req: Request, res: Response) => {
   try {
-    const { username, password } = req.body;
-
-    // Validation
-    if (!username || !password) {
-      return res.status(411).json({ message: 'Username and password are required' });
+    const parsed = signupSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(411).json({ message: firstError(parsed) });
     }
-
-    // Username validation (3-10 characters)
-    if (username.length < 3 || username.length > 10) {
-      return res.status(411).json({ message: 'Username must be 3-10 characters' });
-    }
-
-    // Password validation (8-20 characters, must have uppercase, lowercase, number, special char)
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,20}$/;
-    if (!passwordRegex.test(password)) {
-      return res.status(411).json({
-        message: 'Password must be 8-20 characters and contain at least one uppercase, one lowercase, one number, and one special character'
-      });
-    }
+    const { username, password } = parsed.data;
 
     // Check if user already exists
     const existingUser = await User.findOne({ username });
@@ -56,12 +43,11 @@ router.post('/signup', async (req: Request, res: Response) => {
 // Sign In Route
 router.post('/signin', async (req: Request, res: Response) => {
   try {
-    const { username, password } = req.body;
-
-    // Validation
-    if (!username || !password) {
-      return res.status(411).json({ message: 'Username and password are required' });
+    const parsed = signinSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(411).json({ message: firstError(parsed) });
     }
+    const { username, password } = parsed.data;
 
     // Find user
     const user = await User.findOne({ username });
