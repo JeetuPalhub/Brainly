@@ -374,8 +374,16 @@ const Dashboard: React.FC = () => {
               </div>
               <p className="text-slate-600 dark:text-slate-300 text-lg mb-2 font-medium">{searchQuery ? 'No results found' : 'Your brain is empty'}</p>
               <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                {searchQuery ? 'Try adjusting your search or filters to find what you looking for.' : 'Start adding content to build your personal knowledge base.'}
+                {searchQuery ? "Try adjusting your search or filters to find what you're looking for." : 'Start adding content to build your personal knowledge base.'}
               </p>
+              {!searchQuery && (
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="mt-6 inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition shadow-sm shadow-blue-600/20"
+                >
+                  <PlusIcon /> Add your first item
+                </button>
+              )}
             </motion.div>
           ) : (
             <>

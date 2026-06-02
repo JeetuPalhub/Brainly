@@ -16,3 +16,49 @@ body {
   -moz-osx-font-smoothing: grayscale;
   @apply bg-gray-50 text-gray-900 dark:bg-slate-900 dark:text-slate-100 transition-colors;
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* --- App-wide UI polish --- */
+
+/* Subtle, consistent button feedback. Inline framer-motion transforms take
+   precedence, so animated (Aceternity) buttons are unaffected. */
+button {
+  transition: transform 0.12s ease, box-shadow 0.18s ease,
+    background-color 0.18s ease, opacity 0.18s ease;
+}
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Accessible keyboard focus ring (doesn't show on mouse clicks). */
+:focus-visible {
+  outline: 2px solid rgb(56 189 248 / 0.75);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Refined, unobtrusive scrollbar. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184 / 0.4);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184 / 0.65);
+  background-clip: content-box;
+}

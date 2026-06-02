@@ -90,6 +90,7 @@ const Signup: React.FC = () => {
           <div className="relative">
             <input id="password" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} required />
             <label htmlFor="password" className={labelClass}>Password</label>
+            <p className="mt-1.5 px-1 text-xs text-slate-400">8-20 characters, with an uppercase, a lowercase, a number, and a special character.</p>
           </div>
 
           <div className="relative">

@@ -50,9 +50,9 @@ const Landing: React.FC = () => {
   ];
 
   const socialLinks = [
-    { label: 'Twitter', href: 'https://x.com' },
-    { label: 'GitHub', href: 'https://github.com/JeetuPalhub/Brainly' },
-    { label: 'Discord', href: 'https://discord.com' }
+    { label: 'Twitter', href: 'https://x.com/Jeetupal31' },
+    { label: 'GitHub', href: 'https://github.com/jeetupal31/secondBrain' },
+    { label: 'LinkedIn', href: 'https://linkedin.com/in/jeetu-pal-683ba72a0' }
   ];
 
   return (
