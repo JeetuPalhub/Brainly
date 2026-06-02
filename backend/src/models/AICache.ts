@@ -58,12 +58,13 @@ const aiCacheSchema = new Schema<IAICache>({
   },
   expiresAt: {
     type: Date,
-    required: true,
-    index: true
+    required: true
   }
 });
 
 aiCacheSchema.index({ userId: 1, task: 1, modelName: 1, inputHash: 1 }, { unique: true });
+// TTL index: MongoDB auto-removes documents once expiresAt passes.
+// (This also serves as the index for expiresAt, so no separate `index: true` on the field.)
 aiCacheSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const AICache = mongoose.model<IAICache>('AICache', aiCacheSchema);
