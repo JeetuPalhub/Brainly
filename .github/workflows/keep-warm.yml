@@ -1,0 +1,23 @@
+name: Keep Backend Warm
+
+# Pings the Render backend on a schedule so the free-tier instance
+# doesn't spin down (avoids the 30-50s cold start for real visitors).
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub cron is best-effort and may run a little late.
+    - cron: "*/10 * * * *"
+  workflow_dispatch:        # allows manual "Run workflow" from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: |
+          echo "Pinging backend at $(date -u)"
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 https://brainly-4l1j.onrender.com/)
+          echo "Backend responded with HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "Warning: backend did not return 200 (got $code)"
+          fi
