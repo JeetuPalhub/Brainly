@@ -1,5 +1,6 @@
 # SecondBrain - Personal Knowledge Base
 
+[![CI](https://github.com/jeetupal31/secondBrain/actions/workflows/ci.yml/badge.svg)](https://github.com/jeetupal31/secondBrain/actions/workflows/ci.yml)
 [![Live Demo](https://img.shields.io/badge/Live-Demo-20E3B2?style=flat-square)](https://brainly-neon.vercel.app)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
