@@ -12,6 +12,18 @@ Save links, notes, YouTube videos, tweets, and documents to your second brain. O
 
 ---
 
+## Screenshots
+
+### Landing
+![Landing page](https://raw.githubusercontent.com/jeetupal31/secondBrain/main/assets/screenshots/landing-page.png)
+
+### Dashboard
+![Dashboard - dark](https://raw.githubusercontent.com/jeetupal31/secondBrain/main/assets/screenshots/dashboard-dark.png)
+
+![Dashboard - light](https://raw.githubusercontent.com/jeetupal31/secondBrain/main/assets/screenshots/dashboard-light.png)
+
+---
+
 ## Features
 
 **Core**
